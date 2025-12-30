@@ -108,7 +108,7 @@ public class MineSweeper extends JFrame{
 	
 	public static GameSettings getDifficulty() {
 		Object[] options = {"Easy (9x9, 10 mines)", "Medium (16x16, 40 mines)", 
-							"Hard (30x16, 99 mines)", "Custom"};
+							"Hard (30x30, 99 mines)", "Custom"};
 		int choice = JOptionPane.showOptionDialog(null,
 			"Select Difficulty Level:",
 			"MineSweeper - Difficulty",
@@ -309,6 +309,9 @@ public class MineSweeper extends JFrame{
 	
 	public static void flag(int r, int c) {
 		if(!board[r][c].flagged) {
+
+			if(flagCount >= totalMines) return;
+
 			board[r][c].flagged = true;
 			board[r][c].setBackground(Color.orange);
 			board[r][c].setText("F");
