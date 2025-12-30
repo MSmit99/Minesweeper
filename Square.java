@@ -24,6 +24,9 @@ public class Square extends JButton {
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
+			// Start timer on first click
+			MineSweeper.startTimer();
+			
 			if(e.getButton() == 3) {
 				MineSweeper.flag(row, col);
 			}
