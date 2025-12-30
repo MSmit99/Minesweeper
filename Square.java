@@ -58,6 +58,7 @@ public class Square extends JButton {
 				
 				if(mine) {
 					exposed = true;
+					setFont(new Font("Arial", Font.BOLD, 12));
 					setText("X");
 					setBackground(Color.red);
 					setOpaque(true);
@@ -98,6 +99,7 @@ public class Square extends JButton {
 							if(sq.mine) {
 								// Hit a mine - incorrectly flagged!
 								sq.exposed = true;
+								sq.setFont(new Font("Arial", Font.BOLD, 12));
 								sq.setText("X");
 								sq.setBackground(Color.red);
 								sq.setOpaque(true);

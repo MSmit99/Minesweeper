@@ -18,9 +18,9 @@ public class MineSweeper extends JFrame{
 	JPanel pausePanel = new JPanel();
 	
 	JLabel mineLabel = new JLabel("Mines: ");
-	static JTextField mine = new JTextField(6);
+	static JTextField mine = new JTextField(5);
 	JLabel timerLabel = new JLabel("Time: ");
-	static JTextField timerField = new JTextField(6);
+	static JTextField timerField = new JTextField(5);
 	JButton resetButton = new JButton("Reset");
 	JButton pauseButton = new JButton("Pause");
 	JButton helpButton = new JButton("Help");
@@ -41,16 +41,24 @@ public class MineSweeper extends JFrame{
 	{
 		mine.setEditable(false);
 		mine.setFocusable(false);
+		mine.setPreferredSize(new Dimension(50, 25));
+		
 		timerField.setEditable(false);
 		timerField.setFocusable(false);
 		timerField.setText("00:00");
+		timerField.setPreferredSize(new Dimension(55, 25));
 		
-		// Style reset button
+		// Style buttons with proper sizes
 		resetButton.setFont(new Font("Arial", Font.BOLD, 12));
+		resetButton.setPreferredSize(new Dimension(80, 30));
 		resetButton.setFocusPainted(false);
 		
-		// Style help button
+		pauseButton.setFont(new Font("Arial", Font.BOLD, 12));
+		pauseButton.setPreferredSize(new Dimension(80, 30));
+		pauseButton.setFocusPainted(false);
+		
 		helpButton.setFont(new Font("Arial", Font.BOLD, 12));
+		helpButton.setPreferredSize(new Dimension(70, 30));
 		helpButton.setFocusPainted(false);
 	}
 	
@@ -269,6 +277,7 @@ public class MineSweeper extends JFrame{
 		for(int r = 1; r < board.length-1; r++) {
 			for(int c = 1; c < board.length-1; c++) {
 				if(board[r][c].mine) {
+					board[r][c].setFont(new Font("Arial", Font.BOLD, 12));
 					board[r][c].setText("X");
 					board[r][c].setBackground(Color.red);
 					board[r][c].setOpaque(true);
@@ -445,6 +454,12 @@ public class MineSweeper extends JFrame{
 		centerPanel.add(pausePanel, "pause");
 		add(centerPanel, BorderLayout.CENTER);
 		
+		// Make sure game board is showing
+		cardLayout.show(centerPanel, "game");
+		
+		// Setup north panel with proper spacing
+		northPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 10, 5));
+		
 		northPanel.add(mineLabel);
 		northPanel.add(mine);
 		northPanel.add(timerLabel);
@@ -453,6 +468,9 @@ public class MineSweeper extends JFrame{
 		northPanel.add(pauseButton);
 		northPanel.add(helpButton);
 		add(northPanel, BorderLayout.NORTH);
+		
+		// Ensure pause button shows correct text
+		pauseButton.setText("Pause");
 		
 		// Help button action
 		helpButton.addActionListener(new ActionListener() {
@@ -476,16 +494,20 @@ public class MineSweeper extends JFrame{
 		pauseButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if(!gameStarted || gameEnded) return;
+				if(gameEnded) return;
 				
 				if(!isPaused) {
 					isPaused = true;
-					pauseTimer();
+					if(gameStarted) {
+						pauseTimer();
+					}
 					cardLayout.show(centerPanel, "pause");
 					pauseButton.setText("Resume");
 				} else {
 					isPaused = false;
-					resumeTimer();
+					if(gameStarted) {
+						resumeTimer();
+					}
 					cardLayout.show(centerPanel, "game");
 					pauseButton.setText("Pause");
 				}
