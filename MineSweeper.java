@@ -67,13 +67,14 @@ public class MineSweeper extends JFrame{
 	}
 	
 	public static void showHelp() {
-		String helpText = "<html><body style='width: 300px; padding: 10px;'>" +
+		String helpText = "<html><body style='width: 320px; padding: 10px;'>" +
 			"<h2>How to Play MineSweeper</h2>" +
 			"<p><b>Goal:</b> Clear all non-mine squares without hitting a mine!</p>" +
 			"<br><p><b>Controls:</b></p>" +
 			"<ul>" +
 			"<li><b>Left Click:</b> Reveal a square</li>" +
 			"<li><b>Right Click:</b> Place/remove a flag</li>" +
+			"<li><b>Middle Click (or Left+Right):</b> Chord click - reveal all surrounding squares if correct number of flags are placed</li>" +
 			"</ul>" +
 			"<br><p><b>Numbers:</b> Show how many mines are in the 8 surrounding squares</p>" +
 			"<br><p><b>Buttons:</b></p>" +
@@ -87,6 +88,7 @@ public class MineSweeper extends JFrame{
 			"<li>First click is always safe!</li>" +
 			"<li>Use flags to mark suspected mines</li>" +
 			"<li>Empty squares auto-reveal neighbors</li>" +
+			"<li>Chord clicking speeds up gameplay!</li>" +
 			"</ul>" +
 			"</body></html>";
 		

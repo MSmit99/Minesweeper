@@ -13,6 +13,8 @@ public class Square extends JButton {
 	public boolean flagged = false;
 	public boolean exposed = false;
 	private Color originalBackground;
+	private boolean leftPressed = false;
+	private boolean rightPressed = false;
 	
 	public Square(int r, int c) {
 		row = r;
@@ -37,12 +39,20 @@ public class Square extends JButton {
 			// Start timer on first click
 			MineSweeper.startTimer();
 			
+			// Middle click (chord clicking) on revealed numbers
+			if(e.getButton() == 2 && exposed && mineCount > 0) {
+				chordClick();
+				return;
+			}
+			
+			// Right click - flag
 			if(e.getButton() == 3) {
 				if(!exposed) {
 					MineSweeper.flag(row, col);
 				}
 			}
 			
+			// Left click - reveal
 			if(e.getButton()== 1) {
 				if(flagged) return;
 				
@@ -59,9 +69,57 @@ public class Square extends JButton {
 				}
 			}
 		}
+		
+		// Chord clicking: reveal all surrounding squares if correct number of flags
+		private void chordClick() {
+			if(!exposed || mineCount == 0) return;
+			
+			// Count flags around this square
+			int flagsAround = 0;
+			for(int r = row-1; r <= row+1; r++) {
+				for(int c = col-1; c <= col+1; c++) {
+					if(r == 0 || c == 0) continue;
+					if(r == MineSweeper.board.length-1 || c == MineSweeper.board.length-1) continue;
+					if(MineSweeper.board[r][c].flagged) {
+						flagsAround++;
+					}
+				}
+			}
+			
+			// If flag count matches mine count, reveal all non-flagged squares
+			if(flagsAround == mineCount) {
+				for(int r = row-1; r <= row+1; r++) {
+					for(int c = col-1; c <= col+1; c++) {
+						if(r == 0 || c == 0) continue;
+						if(r == MineSweeper.board.length-1 || c == MineSweeper.board.length-1) continue;
+						
+						Square sq = MineSweeper.board[r][c];
+						if(!sq.flagged && !sq.exposed) {
+							if(sq.mine) {
+								// Hit a mine - incorrectly flagged!
+								sq.exposed = true;
+								sq.setText("X");
+								sq.setBackground(Color.red);
+								sq.setOpaque(true);
+								sq.setBorderPainted(false);
+								MineSweeper.lose();
+								return;
+							} else {
+								MineSweeper.expose(r, c);
+							}
+						}
+					}
+				}
+				MineSweeper.win();
+			}
+		}
 
 		@Override
 		public void mousePressed(MouseEvent e) {
+			// Track which buttons are pressed
+			if(e.getButton() == 1) leftPressed = true;
+			if(e.getButton() == 3) rightPressed = true;
+			
 			// Visual feedback on press
 			if(!MineSweeper.isPaused && !MineSweeper.gameEnded && !exposed && !flagged) {
 				if(e.getButton() == 1) {
@@ -72,6 +130,17 @@ public class Square extends JButton {
 
 		@Override
 		public void mouseReleased(MouseEvent e) {
+			// Check if both buttons were pressed (chord clicking)
+			if(leftPressed && rightPressed && exposed && mineCount > 0) {
+				if(!MineSweeper.isPaused && !MineSweeper.gameEnded) {
+					chordClick();
+				}
+			}
+			
+			// Reset button tracking
+			if(e.getButton() == 1) leftPressed = false;
+			if(e.getButton() == 3) rightPressed = false;
+			
 			// Reset visual feedback
 			if(!exposed && !flagged) {
 				setBackground(originalBackground);
