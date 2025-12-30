@@ -3,22 +3,36 @@ import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.CardLayout;
 import javax.swing.*;
 
 public class MineSweeper extends JFrame{
 	
 	JPanel boardPanel = new JPanel();
 	JPanel northPanel = new JPanel();
-	JLabel mineLabel = new JLabel("Number of mines: ");
-	static JTextField mine = new JTextField(8);
+	JPanel centerPanel = new JPanel();
+	CardLayout cardLayout = new CardLayout();
+	JPanel pausePanel = new JPanel();
+	
+	JLabel mineLabel = new JLabel("Mines: ");
+	static JTextField mine = new JTextField(6);
 	JLabel timerLabel = new JLabel("Time: ");
-	static JTextField timerField = new JTextField(8);
+	static JTextField timerField = new JTextField(6);
 	JButton resetButton = new JButton("Reset Game");
+	JButton pauseButton = new JButton("Pause");
 	
 	static Timer gameTimer;
 	static int elapsedSeconds = 0;
 	static boolean gameStarted = false;
 	static boolean gameEnded = false;
+	static boolean isPaused = false;
+	static boolean minesGenerated = false;
+	
+	static String difficulty;
+	static int num;
+	static int totalMines;
+	static Square[][] board;
+	static int mineCounter = 0;
 	
 	{
 		mine.setEditable(false);
@@ -28,42 +42,93 @@ public class MineSweeper extends JFrame{
 		timerField.setText("00:00");
 	}
 	
-	static String str = getBoardSize();
-	static int num = Integer.parseInt(str);
-	static Square[][] board = new Square[num+2][num+2];
-	static int totalMines = (int)(num*num*0.15);
-	static int mineCounter = 0;
+	public static class GameSettings {
+		String difficulty;
+		int size;
+		int mines;
+		
+		public GameSettings(String diff, int s, int m) {
+			difficulty = diff;
+			size = s;
+			mines = m;
+		}
+	}
 	
-	public static String getBoardSize() {
+	public static GameSettings getDifficulty() {
+		Object[] options = {"Easy (9x9, 10 mines)", "Medium (16x16, 40 mines)", 
+							"Hard (30x16, 99 mines)", "Custom"};
+		int choice = JOptionPane.showOptionDialog(null,
+			"Select Difficulty Level:",
+			"MineSweeper - Difficulty",
+			JOptionPane.DEFAULT_OPTION,
+			JOptionPane.QUESTION_MESSAGE,
+			null,
+			options,
+			options[1]);
+		
+		if(choice == -1) { // User closed dialog
+			System.exit(0);
+		}
+		
+		switch(choice) {
+			case 0: // Easy
+				return new GameSettings("Easy", 9, 10);
+			case 1: // Medium
+				return new GameSettings("Medium", 16, 40);
+			case 2: // Hard
+				return new GameSettings("Hard", 30, 99);
+			case 3: // Custom
+				return getCustomSettings();
+			default:
+				return new GameSettings("Medium", 16, 40);
+		}
+	}
+	
+	public static GameSettings getCustomSettings() {
 		while(true) {
-			String input = JOptionPane.showInputDialog(null, 
-				"Enter the size (N) of the board (5-20 recommended):\n" +
-				"This will create a square grid of NxN tiles.",
-				"MineSweeper - Board Size",
+			String sizeInput = JOptionPane.showInputDialog(null,
+				"Enter board size (5-50):",
+				"Custom Size",
 				JOptionPane.QUESTION_MESSAGE);
 			
-			if(input == null) {
+			if(sizeInput == null) {
 				System.exit(0);
 			}
 			
 			try {
-				int size = Integer.parseInt(input.trim());
-				if(size < 3) {
-					JOptionPane.showMessageDialog(null, 
-						"Board size too small! Please enter a number of at least 3.",
+				int size = Integer.parseInt(sizeInput.trim());
+				if(size < 5 || size > 50) {
+					JOptionPane.showMessageDialog(null,
+						"Size must be between 5 and 50!",
 						"Invalid Input",
 						JOptionPane.ERROR_MESSAGE);
-				} else if(size > 50) {
-					JOptionPane.showMessageDialog(null, 
-						"Board size too large! Please enter a number no greater than 50.",
-						"Invalid Input",
-						JOptionPane.ERROR_MESSAGE);
-				} else {
-					return input.trim();
+					continue;
 				}
+				
+				String mineInput = JOptionPane.showInputDialog(null,
+					"Enter number of mines (1-" + (size*size - 10) + "):",
+					"Custom Mines",
+					JOptionPane.QUESTION_MESSAGE);
+				
+				if(mineInput == null) {
+					System.exit(0);
+				}
+				
+				int mines = Integer.parseInt(mineInput.trim());
+				int maxMines = size * size - 10;
+				if(mines < 1 || mines > maxMines) {
+					JOptionPane.showMessageDialog(null,
+						"Mines must be between 1 and " + maxMines + "!",
+						"Invalid Input",
+						JOptionPane.ERROR_MESSAGE);
+					continue;
+				}
+				
+				return new GameSettings("Custom", size, mines);
+				
 			} catch(NumberFormatException e) {
-				JOptionPane.showMessageDialog(null, 
-					"Invalid input! Please enter a valid number between 3 and 50.",
+				JOptionPane.showMessageDialog(null,
+					"Please enter valid numbers!",
 					"Invalid Input",
 					JOptionPane.ERROR_MESSAGE);
 			}
@@ -77,7 +142,7 @@ public class MineSweeper extends JFrame{
 			gameTimer = new Timer(1000, new ActionListener() {
 				@Override
 				public void actionPerformed(ActionEvent e) {
-					if(!gameEnded) {
+					if(!gameEnded && !isPaused) {
 						elapsedSeconds++;
 						updateTimerDisplay();
 					}
@@ -85,6 +150,14 @@ public class MineSweeper extends JFrame{
 			});
 			gameTimer.start();
 		}
+	}
+	
+	public static void pauseTimer() {
+		isPaused = true;
+	}
+	
+	public static void resumeTimer() {
+		isPaused = false;
 	}
 	
 	public static void stopTimer() {
@@ -98,6 +171,49 @@ public class MineSweeper extends JFrame{
 		int minutes = elapsedSeconds / 60;
 		int seconds = elapsedSeconds % 60;
 		timerField.setText(String.format("%02d:%02d", minutes, seconds));
+	}
+	
+	public static void generateMines(int avoidRow, int avoidCol) {
+		minesGenerated = true;
+		mineCounter = 0;
+		
+		// Clear any existing mines
+		for(int r = 1; r < board.length-1; r++) {
+			for(int c = 1; c < board.length-1; c++) {
+				board[r][c].mine = false;
+				board[r][c].mineCount = 0;
+			}
+		}
+		
+		// Generate mines avoiding first click and surrounding area
+		while(mineCounter < totalMines) {
+			int r = (int)(Math.random() * (board.length - 2)) + 1;
+			int c = (int)(Math.random() * (board.length - 2)) + 1;
+			
+			// Don't place mine if it's in the 3x3 area around first click
+			if(Math.abs(r - avoidRow) <= 1 && Math.abs(c - avoidCol) <= 1) {
+				continue;
+			}
+			
+			// Don't place mine if there's already one there
+			if(!board[r][c].mine) {
+				board[r][c].mine = true;
+				mineCounter++;
+			}
+		}
+		
+		// Calculate mine counts
+		for(int r = 1; r < board.length-1; r++) {
+			for(int c = 1; c < board.length-1; c++) {
+				for(int x = (r-1); x<=r+1; x++) {
+					for(int y = (c-1); y<=c+1; y++) {
+						if(board[x][y].mine) board[r][c].mineCount++;
+					}
+				}
+			}
+		}
+		
+		mine.setText("" + mineCounter);
 	}
 	
 	public static void lose() {
@@ -114,7 +230,7 @@ public class MineSweeper extends JFrame{
 			}
 		}
 		
-		Object[] options = {"Yes (same size)", "Yes (new size)", "No"};
+		Object[] options = {"Yes (same difficulty)", "Yes (new difficulty)", "No"};
 		int response = JOptionPane.showOptionDialog(null,
 			"You lost!!! Time: " + timerField.getText() + "\nPlay again?",
 			"Game Over",
@@ -124,33 +240,15 @@ public class MineSweeper extends JFrame{
 			options,
 			options[0]);
 		
-		if(response == 0) {  // Yes (same size)
+		if(response == 0) {  // Yes (same difficulty)
 			JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 			topFrame.dispose();
-			
-			mineCounter = 0;
-			gameStarted = false;
-			gameEnded = false;
-			elapsedSeconds = 0;
-			// Keep same size - don't ask for new size
-			board = new Square[num+2][num+2];
-			totalMines = (int)(num*num*0.15);
-			new MineSweeper();
-		} else if(response == 1) {  // Yes (new size)
+			resetGame(false);
+		} else if(response == 1) {  // Yes (new difficulty)
 			JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 			topFrame.dispose();
-			
-			mineCounter = 0;
-			gameStarted = false;
-			gameEnded = false;
-			elapsedSeconds = 0;
-			str = getBoardSize();
-			num = Integer.parseInt(str);
-			board = new Square[num+2][num+2];
-			totalMines = (int)(num*num*0.15);
-			new MineSweeper();
+			resetGame(true);
 		}
-		// If response == 2 or CLOSED_OPTION, do nothing (no)
 	}
 	
 	public static void flag(int r, int c) {
@@ -187,7 +285,7 @@ public class MineSweeper extends JFrame{
 		if(count == totalTiles) {
 			stopTimer();
 			
-			Object[] options = {"Yes (same size)", "Yes (new size)", "No"};
+			Object[] options = {"Yes (same difficulty)", "Yes (new difficulty)", "No"};
 			int response = JOptionPane.showOptionDialog(null,
 				"YOU WIN!!! Time: " + timerField.getText() + "\nPlay again?",
 				"Victory!",
@@ -197,34 +295,35 @@ public class MineSweeper extends JFrame{
 				options,
 				options[0]);
 			
-			if(response == 0) {  // Yes (same size)
+			if(response == 0) {  // Yes (same difficulty)
 				JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 				topFrame.dispose();
-				
-				mineCounter = 0;
-				gameStarted = false;
-				gameEnded = false;
-				elapsedSeconds = 0;
-				// Keep same size - don't ask for new size
-				board = new Square[num+2][num+2];
-				totalMines = (int)(num*num*0.15);
-				new MineSweeper();
-			} else if(response == 1) {  // Yes (new size)
+				resetGame(false);
+			} else if(response == 1) {  // Yes (new difficulty)
 				JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 				topFrame.dispose();
-				
-				mineCounter = 0;
-				gameStarted = false;
-				gameEnded = false;
-				elapsedSeconds = 0;
-				str = getBoardSize();
-				num = Integer.parseInt(str);
-				board = new Square[num+2][num+2];
-				totalMines = (int)(num*num*0.15);
-				new MineSweeper();
+				resetGame(true);
 			}
-			// If response == 2 or CLOSED_OPTION, do nothing (no)
 		}
+	}
+	
+	public static void resetGame(boolean newDifficulty) {
+		mineCounter = 0;
+		gameStarted = false;
+		gameEnded = false;
+		elapsedSeconds = 0;
+		minesGenerated = false;
+		isPaused = false;
+		
+		if(newDifficulty) {
+			GameSettings settings = getDifficulty();
+			difficulty = settings.difficulty;
+			num = settings.size;
+			totalMines = settings.mines;
+		}
+		
+		board = new Square[num+2][num+2];
+		new MineSweeper();
 	}
 	
 	public static void expose(int r, int c) {
@@ -276,35 +375,61 @@ public class MineSweeper extends JFrame{
 	
 	public MineSweeper() {
 		int r,c;
-		setTitle("MineSweeper");
+		setTitle("MineSweeper - " + difficulty);
 		setSize(700,700);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setLocationRelativeTo(null);
 		setLayout(new BorderLayout());
+		
+		// Setup center panel with CardLayout
+		centerPanel.setLayout(cardLayout);
 		boardPanel.setLayout(new GridLayout(num,num));
-		add(boardPanel, BorderLayout.CENTER);
+		
+		// Setup pause panel
+		pausePanel.setLayout(new BorderLayout());
+		JLabel pauseLabel = new JLabel("PAUSED", SwingConstants.CENTER);
+		pauseLabel.setFont(pauseLabel.getFont().deriveFont(48f));
+		pausePanel.add(pauseLabel, BorderLayout.CENTER);
+		pausePanel.setBackground(Color.DARK_GRAY);
+		pauseLabel.setForeground(Color.WHITE);
+		
+		centerPanel.add(boardPanel, "game");
+		centerPanel.add(pausePanel, "pause");
+		add(centerPanel, BorderLayout.CENTER);
 		
 		northPanel.add(mineLabel);
 		northPanel.add(mine);
 		northPanel.add(timerLabel);
 		northPanel.add(timerField);
+		northPanel.add(pauseButton);
 		northPanel.add(resetButton);
 		add(northPanel, BorderLayout.NORTH);
+		
+		pauseButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(!gameStarted || gameEnded) return;
+				
+				if(!isPaused) {
+					isPaused = true;
+					pauseTimer();
+					cardLayout.show(centerPanel, "pause");
+					pauseButton.setText("Resume");
+				} else {
+					isPaused = false;
+					resumeTimer();
+					cardLayout.show(centerPanel, "game");
+					pauseButton.setText("Pause");
+				}
+			}
+		});
 		
 		resetButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				stopTimer();
 				dispose();
-				mineCounter = 0;
-				gameStarted = false;
-				gameEnded = false;
-				elapsedSeconds = 0;
-				str = getBoardSize();
-				num = Integer.parseInt(str);
-				board = new Square[num+2][num+2];
-				totalMines = (int)(num*num*0.15);
-				new MineSweeper();
+				resetGame(true);
 			}
 		});
 		
@@ -317,29 +442,21 @@ public class MineSweeper extends JFrame{
 		for(r = 1; r < board.length-1; r++) {
 			for(c = 1; c < board.length-1; c++) {
 				boardPanel.add(board[r][c]);
-				if(Math.random()<0.15 && mineCounter < totalMines) {
-					board[r][c].mine = true;
-					mineCounter++;
-				}
 			}
 		}
 		
-		mine.setText("" + mineCounter);
-		
-		for(r = 1; r < board.length-1; r++) {
-			for(c = 1; c < board.length-1; c++) {
-				for(int x = (r-1); x<=r+1; x++) {
-					for(int y = (c-1); y<=c+1; y++) {
-						if(board[x][y].mine) board[r][c].mineCount++;
-					}
-				}
-			}
-		}
+		mine.setText("" + totalMines);
+		mineCounter = totalMines;
 		
 		setVisible(true);
 	}
 	
 	public static void main(String[] args) {
+		GameSettings settings = getDifficulty();
+		difficulty = settings.difficulty;
+		num = settings.size;
+		totalMines = settings.mines;
+		board = new Square[num+2][num+2];
 		new MineSweeper();
 	}
 }

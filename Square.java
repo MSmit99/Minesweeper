@@ -24,6 +24,14 @@ public class Square extends JButton {
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
+			// Don't allow clicks while paused
+			if(MineSweeper.isPaused) return;
+			
+			// Generate mines on first click (avoiding this position)
+			if(!MineSweeper.minesGenerated) {
+				MineSweeper.generateMines(row, col);
+			}
+			
 			// Start timer on first click
 			MineSweeper.startTimer();
 			
