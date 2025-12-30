@@ -4,7 +4,10 @@ import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.CardLayout;
+import java.awt.Font;
+import java.awt.Dimension;
 import javax.swing.*;
+import javax.swing.border.LineBorder;
 
 public class MineSweeper extends JFrame{
 	
@@ -18,8 +21,9 @@ public class MineSweeper extends JFrame{
 	static JTextField mine = new JTextField(6);
 	JLabel timerLabel = new JLabel("Time: ");
 	static JTextField timerField = new JTextField(6);
-	JButton resetButton = new JButton("Reset Game");
+	JButton resetButton = new JButton("Reset");
 	JButton pauseButton = new JButton("Pause");
+	JButton helpButton = new JButton("Help");
 	
 	static Timer gameTimer;
 	static int elapsedSeconds = 0;
@@ -32,7 +36,7 @@ public class MineSweeper extends JFrame{
 	static int num;
 	static int totalMines;
 	static Square[][] board;
-	static int mineCounter = 0;
+	static int flagCount = 0;
 	
 	{
 		mine.setEditable(false);
@@ -40,6 +44,14 @@ public class MineSweeper extends JFrame{
 		timerField.setEditable(false);
 		timerField.setFocusable(false);
 		timerField.setText("00:00");
+		
+		// Style reset button
+		resetButton.setFont(new Font("Arial", Font.BOLD, 12));
+		resetButton.setFocusPainted(false);
+		
+		// Style help button
+		helpButton.setFont(new Font("Arial", Font.BOLD, 12));
+		helpButton.setFocusPainted(false);
 	}
 	
 	public static class GameSettings {
@@ -54,6 +66,36 @@ public class MineSweeper extends JFrame{
 		}
 	}
 	
+	public static void showHelp() {
+		String helpText = "<html><body style='width: 300px; padding: 10px;'>" +
+			"<h2>How to Play MineSweeper</h2>" +
+			"<p><b>Goal:</b> Clear all non-mine squares without hitting a mine!</p>" +
+			"<br><p><b>Controls:</b></p>" +
+			"<ul>" +
+			"<li><b>Left Click:</b> Reveal a square</li>" +
+			"<li><b>Right Click:</b> Place/remove a flag</li>" +
+			"</ul>" +
+			"<br><p><b>Numbers:</b> Show how many mines are in the 8 surrounding squares</p>" +
+			"<br><p><b>Buttons:</b></p>" +
+			"<ul>" +
+			"<li><b>Reset Button:</b> Restart with new difficulty</li>" +
+			"<li><b>Pause Button:</b> Pause/resume the game</li>" +
+			"<li><b>Help Button:</b> Show this help dialog</li>" +
+			"</ul>" +
+			"<br><p><b>Tips:</b></p>" +
+			"<ul>" +
+			"<li>First click is always safe!</li>" +
+			"<li>Use flags to mark suspected mines</li>" +
+			"<li>Empty squares auto-reveal neighbors</li>" +
+			"</ul>" +
+			"</body></html>";
+		
+		JOptionPane.showMessageDialog(null, 
+			helpText,
+			"MineSweeper Help", 
+			JOptionPane.INFORMATION_MESSAGE);
+	}
+	
 	public static GameSettings getDifficulty() {
 		Object[] options = {"Easy (9x9, 10 mines)", "Medium (16x16, 40 mines)", 
 							"Hard (30x16, 99 mines)", "Custom"};
@@ -66,18 +108,18 @@ public class MineSweeper extends JFrame{
 			options,
 			options[1]);
 		
-		if(choice == -1) { // User closed dialog
+		if(choice == -1) {
 			System.exit(0);
 		}
 		
 		switch(choice) {
-			case 0: // Easy
+			case 0:
 				return new GameSettings("Easy", 9, 10);
-			case 1: // Medium
+			case 1:
 				return new GameSettings("Medium", 16, 40);
-			case 2: // Hard
+			case 2:
 				return new GameSettings("Hard", 30, 99);
-			case 3: // Custom
+			case 3:
 				return getCustomSettings();
 			default:
 				return new GameSettings("Medium", 16, 40);
@@ -135,6 +177,11 @@ public class MineSweeper extends JFrame{
 		}
 	}
 	
+	public static void updateMineCounter() {
+		int remaining = totalMines - flagCount;
+		mine.setText("" + remaining);
+	}
+	
 	public static void startTimer() {
 		if(!gameStarted && !gameEnded) {
 			gameStarted = true;
@@ -175,7 +222,6 @@ public class MineSweeper extends JFrame{
 	
 	public static void generateMines(int avoidRow, int avoidCol) {
 		minesGenerated = true;
-		mineCounter = 0;
 		
 		// Clear any existing mines
 		for(int r = 1; r < board.length-1; r++) {
@@ -186,7 +232,8 @@ public class MineSweeper extends JFrame{
 		}
 		
 		// Generate mines avoiding first click and surrounding area
-		while(mineCounter < totalMines) {
+		int minesPlaced = 0;
+		while(minesPlaced < totalMines) {
 			int r = (int)(Math.random() * (board.length - 2)) + 1;
 			int c = (int)(Math.random() * (board.length - 2)) + 1;
 			
@@ -198,7 +245,7 @@ public class MineSweeper extends JFrame{
 			// Don't place mine if there's already one there
 			if(!board[r][c].mine) {
 				board[r][c].mine = true;
-				mineCounter++;
+				minesPlaced++;
 			}
 		}
 		
@@ -212,8 +259,6 @@ public class MineSweeper extends JFrame{
 				}
 			}
 		}
-		
-		mine.setText("" + mineCounter);
 	}
 	
 	public static void lose() {
@@ -240,11 +285,11 @@ public class MineSweeper extends JFrame{
 			options,
 			options[0]);
 		
-		if(response == 0) {  // Yes (same difficulty)
+		if(response == 0) {
 			JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 			topFrame.dispose();
 			resetGame(false);
-		} else if(response == 1) {  // Yes (new difficulty)
+		} else if(response == 1) {
 			JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 			topFrame.dispose();
 			resetGame(true);
@@ -255,19 +300,19 @@ public class MineSweeper extends JFrame{
 		if(!board[r][c].flagged) {
 			board[r][c].flagged = true;
 			board[r][c].setBackground(Color.orange);
-			board[r][c].setText("|>");
+			board[r][c].setText("F");
 			board[r][c].setOpaque(true);
 			board[r][c].setBorderPainted(false);
-			mineCounter--;
-			mine.setText("" + mineCounter);
+			flagCount++;
+			updateMineCounter();
 		} else {
 			board[r][c].flagged = false;
 			board[r][c].setBackground(null);
 			board[r][c].setText("");
 			board[r][c].setOpaque(false);
 			board[r][c].setBorderPainted(true);
-			mineCounter++;
-			mine.setText("" + mineCounter);
+			flagCount--;
+			updateMineCounter();
 		}
 	}
 	
@@ -295,11 +340,11 @@ public class MineSweeper extends JFrame{
 				options,
 				options[0]);
 			
-			if(response == 0) {  // Yes (same difficulty)
+			if(response == 0) {
 				JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 				topFrame.dispose();
 				resetGame(false);
-			} else if(response == 1) {  // Yes (new difficulty)
+			} else if(response == 1) {
 				JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
 				topFrame.dispose();
 				resetGame(true);
@@ -308,7 +353,7 @@ public class MineSweeper extends JFrame{
 	}
 	
 	public static void resetGame(boolean newDifficulty) {
-		mineCounter = 0;
+		flagCount = 0;
 		gameStarted = false;
 		gameEnded = false;
 		elapsedSeconds = 0;
@@ -341,6 +386,7 @@ public class MineSweeper extends JFrame{
 				board[r][c].setBackground(Color.lightGray);
 				board[r][c].setText("" + board[r][c].mineCount);
 				board[r][c].setForeground(getNumberColor(board[r][c].mineCount));
+				board[r][c].setBorder(new LineBorder(Color.DARK_GRAY, 1));
 				return;
 			} else {
 				board[r][c].setBackground(Color.cyan);
@@ -401,10 +447,30 @@ public class MineSweeper extends JFrame{
 		northPanel.add(mine);
 		northPanel.add(timerLabel);
 		northPanel.add(timerField);
-		northPanel.add(pauseButton);
 		northPanel.add(resetButton);
+		northPanel.add(pauseButton);
+		northPanel.add(helpButton);
 		add(northPanel, BorderLayout.NORTH);
 		
+		// Help button action
+		helpButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				showHelp();
+			}
+		});
+		
+		// Reset button action
+		resetButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				stopTimer();
+				dispose();
+				resetGame(true);
+			}
+		});
+		
+		// Pause button action
 		pauseButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -424,15 +490,6 @@ public class MineSweeper extends JFrame{
 			}
 		});
 		
-		resetButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				stopTimer();
-				dispose();
-				resetGame(true);
-			}
-		});
-		
 		for(r = 0; r < board.length; r++) {
 			for(c = 0; c < board.length; c++) {
 				board[r][c] = new Square(r,c);
@@ -445,8 +502,7 @@ public class MineSweeper extends JFrame{
 			}
 		}
 		
-		mine.setText("" + totalMines);
-		mineCounter = totalMines;
+		updateMineCounter();
 		
 		setVisible(true);
 	}

@@ -12,11 +12,13 @@ public class Square extends JButton {
 	private int row, col;
 	public boolean flagged = false;
 	public boolean exposed = false;
+	private Color originalBackground;
 	
 	public Square(int r, int c) {
 		row = r;
 		col = c;
 		setFont(new Font("Arial", Font.BOLD, 18));
+		originalBackground = getBackground();
 		addMouseListener(new ClickMe());
 	}
 	
@@ -24,8 +26,8 @@ public class Square extends JButton {
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
-			// Don't allow clicks while paused
-			if(MineSweeper.isPaused) return;
+			// Don't allow clicks while paused or game ended
+			if(MineSweeper.isPaused || MineSweeper.gameEnded) return;
 			
 			// Generate mines on first click (avoiding this position)
 			if(!MineSweeper.minesGenerated) {
@@ -36,7 +38,9 @@ public class Square extends JButton {
 			MineSweeper.startTimer();
 			
 			if(e.getButton() == 3) {
-				MineSweeper.flag(row, col);
+				if(!exposed) {
+					MineSweeper.flag(row, col);
+				}
 			}
 			
 			if(e.getButton()== 1) {
@@ -58,26 +62,36 @@ public class Square extends JButton {
 
 		@Override
 		public void mousePressed(MouseEvent e) {
-			// TODO Auto-generated method stub
-			
+			// Visual feedback on press
+			if(!MineSweeper.isPaused && !MineSweeper.gameEnded && !exposed && !flagged) {
+				if(e.getButton() == 1) {
+					setBackground(Color.LIGHT_GRAY);
+				}
+			}
 		}
 
 		@Override
 		public void mouseReleased(MouseEvent e) {
-			// TODO Auto-generated method stub
-			
+			// Reset visual feedback
+			if(!exposed && !flagged) {
+				setBackground(originalBackground);
+			}
 		}
 
 		@Override
 		public void mouseEntered(MouseEvent e) {
-			// TODO Auto-generated method stub
-			
+			// Hover effect for unrevealed tiles
+			if(!MineSweeper.isPaused && !MineSweeper.gameEnded && !exposed && !flagged) {
+				setBackground(new Color(220, 220, 220));
+			}
 		}
 
 		@Override
 		public void mouseExited(MouseEvent e) {
-			// TODO Auto-generated method stub
-			
+			// Remove hover effect
+			if(!exposed && !flagged) {
+				setBackground(originalBackground);
+			}
 		}
 	}
 }
