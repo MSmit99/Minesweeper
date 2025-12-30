@@ -11,12 +11,56 @@ public class MineSweeper extends JFrame{
 	JPanel northPanel = new JPanel();
 	JLabel mineLabel = new JLabel("Number of mines: ");
 	static JTextField mine = new JTextField(8);
+	JButton resetButton = new JButton("Reset Game");
 	
-	static String str = JOptionPane.showInputDialog("Enter the size of the board: ");
+	{
+		mine.setEditable(false);
+		mine.setFocusable(false);
+	}
+	
+	static String str = getBoardSize();
 	static int num = Integer.parseInt(str);
 	static Square[][] board = new Square[num+2][num+2];
 	static int totalMines = (int)(num*num*0.15);
 	static int mineCounter = 0;
+	
+	public static String getBoardSize() {
+		while(true) {
+			String input = JOptionPane.showInputDialog(null, 
+				"Enter the size (N) of the board (5-20 recommended):\n" +
+				"This will create a square grid of NxN tiles.",
+				"MineSweeper - Board Size",
+				JOptionPane.QUESTION_MESSAGE);
+			
+			// Check if user cancelled
+			if(input == null) {
+				System.exit(0);
+			}
+			
+			// Validate input
+			try {
+				int size = Integer.parseInt(input.trim());
+				if(size < 3) {
+					JOptionPane.showMessageDialog(null, 
+						"Board size too small! Please enter a number of at least 3.",
+						"Invalid Input",
+						JOptionPane.ERROR_MESSAGE);
+				} else if(size > 50) {
+					JOptionPane.showMessageDialog(null, 
+						"Board size too large! Please enter a number no greater than 50.",
+						"Invalid Input",
+						JOptionPane.ERROR_MESSAGE);
+				} else {
+					return input.trim();
+				}
+			} catch(NumberFormatException e) {
+				JOptionPane.showMessageDialog(null, 
+					"Invalid input! Please enter a valid number between 3 and 50.",
+					"Invalid Input",
+					JOptionPane.ERROR_MESSAGE);
+			}
+		}
+	}
 	
 	public static void lose() {
 		for(int r = 1; r < board.length-1; r++) {
@@ -30,7 +74,19 @@ public class MineSweeper extends JFrame{
 			}
 		}
 		
-		JOptionPane.showMessageDialog(null, "You lost!!! The game is over!!! Wanna play again?");
+		int response = JOptionPane.showConfirmDialog(null, "You lost!!! The game is over!!! Play again?", "Game Over", JOptionPane.YES_NO_OPTION);
+		if(response == JOptionPane.YES_OPTION) {
+			// Close all existing frames
+			JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
+			topFrame.dispose();
+			
+			mineCounter = 0;
+			str = getBoardSize();
+			num = Integer.parseInt(str);
+			board = new Square[num+2][num+2];
+			totalMines = (int)(num*num*0.15);
+			new MineSweeper();
+		}
 	}
 	
 	public static void flag(int r, int c) {
@@ -65,8 +121,19 @@ public class MineSweeper extends JFrame{
 			}
 		}
 		if(count == totalTiles) {
-			JOptionPane.showMessageDialog(null, "YOU WIN!!!");
-			new MineSweeper();
+			int response = JOptionPane.showConfirmDialog(null, "YOU WIN!!! Play again?", "Victory!", JOptionPane.YES_NO_OPTION);
+			if(response == JOptionPane.YES_OPTION) {
+				// Close all existing frames
+				JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(board[1][1]);
+				topFrame.dispose();
+				
+				mineCounter = 0;
+				str = getBoardSize();
+				num = Integer.parseInt(str);
+				board = new Square[num+2][num+2];
+				totalMines = (int)(num*num*0.15);
+				new MineSweeper();
+			}
 		}
 	}
 	
@@ -78,27 +145,44 @@ public class MineSweeper extends JFrame{
 		
 		if(!board[r][c].mine) {
 			board[r][c].exposed = true;
-			board[r][c].setBackground(Color.cyan);
 			board[r][c].setOpaque(true);
 			board[r][c].setBorderPainted(false);
 			
 			if(board[r][c].mineCount != 0) {
+				board[r][c].setBackground(Color.lightGray);
 				board[r][c].setText("" + board[r][c].mineCount);
+				board[r][c].setForeground(getNumberColor(board[r][c].mineCount));
 				return;
+			} else {
+				board[r][c].setBackground(Color.cyan);
 			}
 		}
 		
-		expose(r,c-1);
-		expose(r,c+1);
+		// Expose all 8 surrounding squares
+		expose(r,c-1);      // left
+		expose(r,c+1);      // right
 		
-		expose(r-1,c-1);
-		expose(r-1,c+1);
+		expose(r-1,c-1);    // top-left
+		expose(r-1,c);      // top (THIS WAS MISSING - BUG FIX)
+		expose(r-1,c+1);    // top-right
 		
-		expose(r-1,c-1);
-		expose(r-1,c+1);
-		
-		expose(r+1,c-1);
-		expose(r+1,c+1);
+		expose(r+1,c-1);    // bottom-left
+		expose(r+1,c);      // bottom (THIS WAS MISSING - BUG FIX)
+		expose(r+1,c+1);    // bottom-right
+	}
+	
+	public static Color getNumberColor(int count) {
+		switch(count) {
+			case 1: return Color.blue;
+			case 2: return new Color(0, 128, 0); // dark green
+			case 3: return Color.red;
+			case 4: return new Color(0, 0, 128); // dark blue
+			case 5: return new Color(128, 0, 0); // dark red
+			case 6: return new Color(0, 128, 128); // teal
+			case 7: return Color.black;
+			case 8: return Color.gray;
+			default: return Color.black;
+		}
 	}
 	
 	public MineSweeper() {
@@ -113,7 +197,21 @@ public class MineSweeper extends JFrame{
 		
 		northPanel.add(mineLabel);
 		northPanel.add(mine);
+		northPanel.add(resetButton);
 		add(northPanel, BorderLayout.NORTH);
+		
+		resetButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				dispose();
+				mineCounter = 0;
+				str = getBoardSize();
+				num = Integer.parseInt(str);
+				board = new Square[num+2][num+2];
+				totalMines = (int)(num*num*0.15);
+				new MineSweeper();
+			}
+		});
 		
 		for(r = 0; r < board.length; r++) {
 			for(c = 0; c < board.length; c++) {
